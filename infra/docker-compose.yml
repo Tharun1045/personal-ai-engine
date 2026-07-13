@@ -17,12 +17,12 @@ services:
       start_period: 40s
 
   zenml:
-    image: zenmldocker/zenml:0.96.1
+    image: zenmldocker/zenml-server:0.96.1
     container_name: zenml
     ports:
       - "8080:8080"
     environment:
-      - ZENML_STORE_URL=sqlite://zenml.db
+      - ZENML_STORE_URL=sqlite:////tmp/zenml.db
     volumes:
       - zenml_data:/app/zenml_data
     healthcheck:

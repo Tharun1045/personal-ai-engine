@@ -12,7 +12,9 @@ dependencies = [
     "pydantic<=2.12.5",
     "pydantic-settings<=2.2.1",
     "pymongo>=4.17.0",
-    "zenml>=0.96.1",
+    "sqlalchemy>=2.0.51",
+    "sqlalchemy-utils>=0.42.1",
+    "zenml[server]>=0.96.1",
 ]
 
 [build-system]
