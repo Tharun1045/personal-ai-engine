@@ -8,12 +8,16 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
+    "crawl4ai>=0.3.745",
+    "loguru>=0.7.3",
     "ollama>=0.6.2",
     "pydantic<=2.12.5",
     "pydantic-settings<=2.2.1",
     "pymongo>=4.17.0",
+    "requests>=2.34.2",
     "sqlalchemy>=2.0.51",
     "sqlalchemy-utils>=0.42.1",
+    "tiktoken>=0.13.0",
     "zenml[server]>=0.96.1",
 ]
 
@@ -25,6 +29,7 @@ build-backend = "uv_build"
 dev = [
     "mypy>=2.2.0",
     "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
     "requests>=2.34.2",
     "ruff>=0.15.21",
 ]

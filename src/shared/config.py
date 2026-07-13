@@ -25,5 +25,8 @@ class AppSettings(BaseSettings):
 
     ZENML_STORE_URL: str = "http://localhost:8080"
 
+    NOTION_SECRET_KEY: str | None = None
+    NOTION_DATABASE_ID: str | None = None
+
 
 settings = AppSettings()

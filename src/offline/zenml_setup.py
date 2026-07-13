@@ -1,5 +1,4 @@
 from zenml import pipeline, step
-from zenml.client import Client
 
 
 @step
@@ -14,6 +13,7 @@ def minimal_smoke_pipeline():
 
 import urllib.request
 from src.shared.config import settings
+
 
 def verify_zenml_server() -> bool:
     try:
