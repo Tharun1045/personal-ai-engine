@@ -9,8 +9,12 @@ authors = [
 requires-python = ">=3.12"
 dependencies = [
     "ollama>=0.6.2",
-    "pydantic>=2.13.4",
-    "pydantic-settings>=2.14.2",
+    "pydantic<=2.12.5",
+    "pydantic-settings<=2.2.1",
+    "pymongo>=4.17.0",
+    "sqlalchemy>=2.0.51",
+    "sqlalchemy-utils>=0.42.1",
+    "zenml[server]>=0.96.1",
 ]
 
 [build-system]
