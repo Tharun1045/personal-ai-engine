@@ -41,5 +41,5 @@ def etl(
     ingest_to_mongodb(
         models=enhanced_documents,
         collection_name=load_collection_name,
-        clear_collection=True,
+        clear_collection=False,
     )

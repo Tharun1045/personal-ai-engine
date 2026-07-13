@@ -8,21 +8,9 @@ from src.offline.mongo_client import MongoDBClient
 
 @step
 def ingest_to_mongodb(
-    models: list[BaseModel], collection_name: str, clear_collection: bool = True
+    models: list[BaseModel], collection_name: str, clear_collection: bool = False
 ) -> Annotated[int, "output"]:
-    """ZenML step to ingest documents into MongoDB.
-
-    Args:
-        models: List of Pydantic BaseModel instances to ingest into MongoDB.
-        collection_name: Name of the MongoDB collection to ingest into.
-        clear_collection: If True, clears the collection before ingestion. Defaults to True.
-
-    Returns:
-        int: Number of documents in the collection after ingestion.
-
-    Raises:
-        ValueError: If no documents are provided for ingestion.
-    """
+    """ZenML step to ingest documents into MongoDB."""
 
     if not models:
         raise ValueError("No documents provided for ingestion")
@@ -37,11 +25,13 @@ def ingest_to_mongodb(
                 f"'clear_collection' is set to True. Clearing MongoDB collection '{collection_name}' before ingestion."
             )
             service.clear_collection()
-        service.ingest_documents(models)
+
+        metrics = service.ingest_documents(models)
 
         count = service.get_collection_count()
         logger.info(
-            f"Successfully ingested {count} documents into MongoDB collection '{collection_name}'"
+            f"Successfully ingested {count} documents into MongoDB collection '{collection_name}'. "
+            f"Metrics: {metrics}"
         )
 
     step_context = get_step_context()
@@ -49,6 +39,9 @@ def ingest_to_mongodb(
         output_name="output",
         metadata={
             "count": count,
+            "inserted": metrics["inserted"],
+            "updated": metrics["updated"],
+            "unchanged": metrics["unchanged"],
         },
     )
 

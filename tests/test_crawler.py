@@ -29,7 +29,7 @@ async def test_crawler_deduplication():
         async def __aexit__(self, exc_type, exc_val, exc_tb):
             pass
 
-        async def arun(self, url):
+        async def arun(self, url, **kwargs):
             return MockResult()
 
     with patch(

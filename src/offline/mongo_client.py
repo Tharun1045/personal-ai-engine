@@ -40,19 +40,30 @@ class MongoDBClient(Generic[T]):
             raise ValueError("Collection name not set")
         self.collection.delete_many({})
 
-    def ingest_documents(self, documents: list[T]) -> None:
+    def ingest_documents(self, documents: list[T]) -> dict[str, int]:
         if not documents:
-            return
+            return {"inserted": 0, "updated": 0, "unchanged": 0}
         if not self.collection_name:
             raise ValueError("Collection name not set")
 
+        # Ensure unique index on id
+        self.collection.create_index("id", unique=True)
+
+        metrics = {"inserted": 0, "updated": 0, "unchanged": 0}
+
         for doc in documents:
             doc_dict = doc.model_dump()
-            # Ensure idempotent writes by using 'id' to update or insert
-            # We can use update_one with upsert=True instead of insert_many to handle duplicates
-            self.collection.update_one(
+            result = self.collection.update_one(
                 {"id": doc_dict.get("id")}, {"$set": doc_dict}, upsert=True
             )
+            if result.upserted_id:
+                metrics["inserted"] += 1
+            elif result.modified_count > 0:
+                metrics["updated"] += 1
+            else:
+                metrics["unchanged"] += 1
+
+        return metrics
 
     def fetch_documents(self, query: dict, limit: int = 0) -> list[T]:
         if not self.collection_name or not self.model:

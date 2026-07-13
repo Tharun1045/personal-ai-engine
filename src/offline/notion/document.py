@@ -38,13 +38,20 @@ class NotionDocumentClient:
         blocks = self.__retrieve_child_blocks(document_metadata.id)
         content, urls = self.__parse_blocks(blocks)
 
-        parent_metadata = document_metadata.properties.pop("parent", None)
+        for key, value in document_metadata.properties.items():
+            if isinstance(value, str) and value.startswith("http"):
+                norm = self.__normalize_url(value)
+                if norm:
+                    urls.append(norm)
+        urls = list(set(urls))
+
+        parent_metadata = document_metadata.properties.get("parent", None)
         if parent_metadata:
             parent_metadata = DocumentMetadata(
-                id=parent_metadata["id"],
-                url=parent_metadata["url"],
-                title=parent_metadata["title"],
-                properties=parent_metadata["properties"],
+                id=parent_metadata.get("id", ""),
+                url=parent_metadata.get("url", ""),
+                title=parent_metadata.get("title", ""),
+                properties=parent_metadata.get("properties", {}),
             )
 
         return Document(
@@ -58,35 +65,45 @@ class NotionDocumentClient:
     def __retrieve_child_blocks(
         self, block_id: str, page_size: int = 100
     ) -> list[dict]:
-        """Retrieve child blocks from a Notion block.
+        """Retrieve child blocks from a Notion block."""
+        import time
 
-        Args:
-            block_id: The ID of the block to retrieve children from.
-            page_size: Number of blocks to retrieve per request.
+        all_blocks = []
+        has_more = True
+        next_cursor = None
 
-        Returns:
-            list[dict]: List of block data.
-        """
+        while has_more:
+            blocks_url = f"https://api.notion.com/v1/blocks/{block_id}/children?page_size={page_size}"
+            if next_cursor:
+                blocks_url += f"&start_cursor={next_cursor}"
 
-        blocks_url = f"https://api.notion.com/v1/blocks/{block_id}/children?page_size={page_size}"
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Notion-Version": "2022-06-28",
-        }
-        try:
-            blocks_response = requests.get(blocks_url, headers=headers, timeout=10)
-            blocks_response.raise_for_status()
-            blocks_data = blocks_response.json()
-            return blocks_data.get("results", [])
-        except requests.exceptions.RequestException as e:
-            error_message = f"Error: Failed to retrieve Notion page content. {e}"
-            if hasattr(e, "response") and e.response is not None:
-                error_message += f" Status code: {e.response.status_code}, Response: {e.response.text}"
-            logger.exception(error_message)
-            return []
-        except Exception:
-            logger.exception("Error retrieving Notion page content")
-            return []
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Notion-Version": settings.NOTION_API_VERSION,
+            }
+
+            retries = settings.NOTION_RETRIES
+            for attempt in range(retries):
+                try:
+                    blocks_response = requests.get(
+                        blocks_url, headers=headers, timeout=settings.NOTION_TIMEOUT
+                    )
+                    blocks_response.raise_for_status()
+                    blocks_data = blocks_response.json()
+                    all_blocks.extend(blocks_data.get("results", []))
+                    has_more = blocks_data.get("has_more", False)
+                    next_cursor = blocks_data.get("next_cursor", None)
+                    break
+                except requests.exceptions.RequestException as e:
+                    error_message = f"Error: Failed to retrieve Notion page content (attempt {attempt + 1}/{retries}). {e}"
+                    if hasattr(e, "response") and e.response is not None:
+                        error_message += f" Status code: {e.response.status_code}, Response: {e.response.text}"
+                    logger.warning(error_message)
+                    if attempt == retries - 1:
+                        raise e
+                    time.sleep(settings.NOTION_BACKOFF * (2**attempt))
+
+        return all_blocks
 
     def __parse_blocks(
         self, blocks: list[dict], depth: int = 0
@@ -144,11 +161,12 @@ class NotionDocumentClient:
                 content += child_content + "\n</child_page>\n\n"
                 urls += child_urls
 
-            elif block_type == "link_preview":
-                url = block.get("link_preview", {}).get("url", "")
-                content += f"[Link Preview]({url})\n"
-
-                urls.append(self.__normalize_url(url))
+            elif block_type in ("link_preview", "bookmark", "embed"):
+                url = block.get(block_type, {}).get("url", "")
+                content += f"[{block_type.title()}]({url})\n"
+                norm_url = self.__normalize_url(url)
+                if norm_url:
+                    urls.append(norm_url)
             else:
                 logger.warning(f"Unknown block type: {block_type}")
 
@@ -206,19 +224,55 @@ class NotionDocumentClient:
                 url = text["annotations"]["url"]
 
             if url:
-                urls.append(self.__normalize_url(url))
+                norm = self.__normalize_url(url)
+                if norm:
+                    urls.append(norm)
 
         return urls
 
-    def __normalize_url(self, url: str) -> str:
-        """Normalize a URL by ensuring it ends with a forward slash.
+    def __normalize_url(self, url: str) -> str | None:
+        """Normalize a URL to be used as a stable identifier.
 
         Args:
             url: URL to normalize.
 
         Returns:
-            str: Normalized URL with trailing slash.
+            str | None: Normalized URL or None if invalid/unsupported.
         """
-        if not url.endswith("/"):
-            url += "/"
-        return url
+        import urllib.parse
+
+        try:
+            parsed = urllib.parse.urlparse(url)
+            if parsed.scheme.lower() not in ("http", "https"):
+                return None
+
+            scheme = parsed.scheme.lower()
+            netloc = parsed.netloc.lower()
+            path = parsed.path
+
+            # Remove tracking query parameters
+            query = urllib.parse.parse_qs(parsed.query, keep_blank_values=True)
+            tracking_params = {
+                "utm_source",
+                "utm_medium",
+                "utm_campaign",
+                "utm_term",
+                "utm_content",
+                "fbclid",
+                "gclid",
+            }
+            filtered_query = {
+                k: v for k, v in query.items() if k.lower() not in tracking_params
+            }
+
+            # Reconstruct query string, sorted to guarantee stability
+            new_query = urllib.parse.urlencode(filtered_query, doseq=True)
+
+            # Reconstruct without fragment
+            normalized = urllib.parse.urlunparse(
+                (scheme, netloc, path, parsed.params, new_query, "")
+            )
+
+            return normalized
+        except Exception:
+            return None

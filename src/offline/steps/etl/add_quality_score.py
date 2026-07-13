@@ -12,53 +12,35 @@ from src.personal_ai_engine.domain import Document
 @step
 def add_quality_score(
     documents: list[Document],
-    model_id: str = "gpt-4o-mini",
+    use_llm: bool = False,
+    model_id: str = "qwen3:8b",
     mock: bool = False,
     max_workers: int = 10,
 ) -> Annotated[list[Document], "scored_documents"]:
-    """Adds quality scores to documents using heuristic and model-based scoring agents.
-
-    This function processes documents in two stages:
-    1. Applies heuristic-based quality scoring
-    2. Uses a model-based quality agent for documents that weren't scored by heuristics
-
-    Args:
-        documents: List of documents to evaluate for quality
-        model_id: Identifier for the model to use in quality assessment.
-            Defaults to "gpt-4o-mini"
-        mock: If True, uses mock responses instead of real model calls.
-            Defaults to False
-        max_workers: Maximum number of concurrent quality check operations.
-            Defaults to 10
-
-    Returns:
-        list[Document]: Documents enhanced with quality scores, annotated as
-            "scored_documents" for pipeline metadata tracking
-
-    Note:
-        The function adds metadata to the step context including the total number
-        of documents and how many received quality scores.
-    """
+    """Adds quality scores to documents using heuristic and model-based scoring agents."""
     heuristic_quality_agent = HeuristicQualityAgent()
     scored_documents: list[Document] = heuristic_quality_agent(documents)
 
-    scored_documents_with_heuristics = [
-        d for d in scored_documents if d.content_quality_score is not None
-    ]
-    documents_without_scores = [
-        d for d in scored_documents if d.content_quality_score is None
-    ]
+    if use_llm:
+        # Evaluate documents that were not confidently rejected by heuristics
+        documents_to_eval = [
+            d
+            for d in scored_documents
+            if d.quality_assessment and d.quality_assessment.get("total_score", 0) > 0.0
+        ]
+        documents_rejected = [
+            d
+            for d in scored_documents
+            if d.quality_assessment
+            and d.quality_assessment.get("total_score", 0) == 0.0
+        ]
 
-    quality_agent = QualityScoreAgent(
-        model_id=model_id, mock=mock, max_concurrent_requests=max_workers
-    )
-    scored_documents_with_agents: list[Document] = quality_agent(
-        documents_without_scores
-    )
+        quality_agent = QualityScoreAgent(
+            mock=mock, max_concurrent_requests=max_workers
+        )
+        scored_documents_with_agents: list[Document] = quality_agent(documents_to_eval)
 
-    scored_documents: list[Document] = (
-        scored_documents_with_heuristics + scored_documents_with_agents
-    )
+        scored_documents = documents_rejected + scored_documents_with_agents
 
     len_documents = len(documents)
     len_documents_with_scores = len(
@@ -73,10 +55,6 @@ def add_quality_score(
         metadata={
             "len_documents": len_documents,
             "len_documents_with_scores": len_documents_with_scores,
-            "len_documents_scored_with_heuristics": len(
-                scored_documents_with_heuristics
-            ),
-            "len_documents_scored_with_agents": len(scored_documents_with_agents),
         },
     )
 

@@ -10,7 +10,7 @@ def test_heuristic_quality_scoring():
 
     # High URL content ratio
     doc1 = Document(
-        id="1", metadata=meta, content="a" * 10, child_urls=["http://test.com/a" * 5]
+        id="1", metadata=meta, content="a " * 20, child_urls=["http://test.com/a" * 5]
     )
     agent = HeuristicQualityAgent()
     doc1_scored = agent(doc1)
@@ -18,17 +18,15 @@ def test_heuristic_quality_scoring():
 
     # Low URL content ratio
     doc2 = Document(
-        id="2", metadata=meta, content="a" * 1000, child_urls=["http://test.com/a"]
+        id="2", metadata=meta, content="a " * 1000, child_urls=["http://test.com/a"]
     )
     doc2_scored = agent(doc2)
-    assert (
-        doc2_scored.content_quality_score is None
-    )  # Remains un-scored by heuristic, meaning it's fine
+    assert doc2_scored.content_quality_score == 1.0
 
 
 def test_content_cleaning():
     raw_content = "This   is   a\n\n\n\ntest."
-    cleaned = clean_content(raw_content)
+    cleaned, content_hash = clean_content(raw_content)
     assert (
         cleaned == "This is a\n\nTest." or cleaned == "This is a\n\ntest."
     )  # Actually regex replaces spaces but leaves \n\n

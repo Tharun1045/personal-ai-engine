@@ -27,6 +27,21 @@ class AppSettings(BaseSettings):
 
     NOTION_SECRET_KEY: str | None = None
     NOTION_DATABASE_ID: str | None = None
+    NOTION_API_VERSION: str = "2022-06-28"
+    NOTION_PAGE_SIZE: int = 100
+    NOTION_TIMEOUT: int = 15
+    NOTION_RETRIES: int = 3
+    NOTION_BACKOFF: float = 2.0
+
+    CRAWLER_CONCURRENCY: int = 5
+    CRAWLER_TIMEOUT: int = 30
+    CRAWLER_MAX_RESPONSE_SIZE: int = 10485760  # 10MB
+    CRAWLER_ALLOWED_DOMAINS: list[str] = []
+    CRAWLER_BLOCKED_DOMAINS: list[str] = []
+    CRAWLER_USER_AGENT: str = "PersonalAIEngineBot/1.0"
+
+    QUALITY_SCORE_THRESHOLD: float = 0.5
+    MONGO_DB_LOAD_COLLECTION: str = "documents"
 
 
 settings = AppSettings()

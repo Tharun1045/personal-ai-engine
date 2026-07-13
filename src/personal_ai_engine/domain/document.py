@@ -33,7 +33,9 @@ class Document(BaseModel):
     metadata: DocumentMetadata
     parent_metadata: DocumentMetadata | None = None
     content: str
+    content_hash: str | None = None
     content_quality_score: float | None = None
+    quality_assessment: dict | None = None
     summary: str | None = None
     child_urls: list[str] = Field(default_factory=list)
 

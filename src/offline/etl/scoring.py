@@ -5,6 +5,9 @@ from src.gateway.factory import AIGatewayFactory
 
 
 class HeuristicQualityAgent:
+    def __init__(self):
+        self.version = "heuristic-v1"
+
     def __call__(
         self, documents: Document | list[Document]
     ) -> Document | list[Document]:
@@ -14,19 +17,34 @@ class HeuristicQualityAgent:
         return scored[0] if is_single else scored
 
     def __score_document(self, document: Document) -> Document:
-        if not document.content:
-            return document.add_quality_score(score=0.0)
-
-        # Simple heuristic based on URL to text ratio
         url_based_content = sum(len(url) for url in document.child_urls)
+        word_count = len(document.content.split())
         url_content_ratio = url_based_content / max(len(document.content), 1)
 
+        reasons = []
         if url_content_ratio >= 0.7:
-            return document.add_quality_score(score=0.0)
+            score = 0.0
+            reasons.append("Too many URLs relative to text")
         elif url_content_ratio >= 0.5:
-            return document.add_quality_score(score=0.2)
+            score = 0.2
+            reasons.append("High URL ratio")
+        elif word_count < 10:
+            score = 0.0
+            reasons.append("Content too short")
+        else:
+            score = 1.0
 
-        return document
+        document.quality_assessment = {
+            "version": self.version,
+            "total_score": score,
+            "signal_scores": {
+                "url_ratio": 1.0 - min(url_content_ratio, 1.0),
+                "length": min(word_count / 100, 1.0),
+            },
+            "classification": "relevant" if score >= 0.5 else "irrelevant",
+            "rejection_reasons": reasons,
+        }
+        return document.add_quality_score(score=score)
 
 
 class QualityScoreAgent:
@@ -44,16 +62,17 @@ Analyze the text thoroughly and assign a quality score between 0 and 1, where:
 
 It is crucial that you return only the score in the following JSON format:
 {{
-    "score": <your score between 0.0 and 1.0>
+    "score": <your score between 0.0 and 1.0>,
+    "reasons": ["reason 1", "reason 2"]
 }}
 
 DOCUMENT:
 {document}
 """
 
-    def __init__(self, mock: bool = False):
+    def __init__(self, mock: bool = False, max_concurrent_requests: int = 1):
         self.mock = mock
-        # Enforce Ollama provider as per requirements
+        self.version = "ollama-qwen3:8b-v1"
         self.chat_generator = AIGatewayFactory.get_chat_generator(provider="ollama")
 
     def __call__(
@@ -70,16 +89,29 @@ DOCUMENT:
 
     def __score_document(self, document: Document) -> Document:
         if self.mock:
-            return document.add_quality_score(score=0.8)
+            score = 0.8
+            reasons = []
+        else:
+            prompt = self.SYSTEM_PROMPT_TEMPLATE.format(
+                document=document.content[:8192]
+            )
+            try:
+                response_text = self.chat_generator.generate(prompt)
+                dict_content = json.loads(response_text)
+                score = float(dict_content.get("score", 0.5))
+                reasons = dict_content.get("reasons", [])
+            except Exception as e:
+                logger.warning(f"Failed to score document {document.id}: {str(e)}")
+                score = 0.5
+                reasons = ["LLM error"]
 
-        prompt = self.SYSTEM_PROMPT_TEMPLATE.format(document=document.content[:8192])
-        try:
-            # We use the generic chat generator instead of direct LiteLLM
-            response_text = self.chat_generator.generate(prompt)
-            dict_content = json.loads(response_text)
-            score = float(dict_content.get("score", 0.5))
-            return document.add_quality_score(score=score)
-        except Exception as e:
-            logger.warning(f"Failed to score document {document.id}: {str(e)}")
-            # Fallback to a default score
-            return document.add_quality_score(score=0.5)
+        document.quality_assessment = {
+            "version": self.version,
+            "total_score": score,
+            "signal_scores": {
+                "llm_relevance": score,
+            },
+            "classification": "relevant" if score >= 0.5 else "irrelevant",
+            "rejection_reasons": reasons,
+        }
+        return document.add_quality_score(score=score)
