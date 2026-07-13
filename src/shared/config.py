@@ -20,5 +20,10 @@ class AppSettings(BaseSettings):
     GEMINI_CHAT_MODEL: str = "gemini-1.5-flash"
     GEMINI_EMBEDDING_MODEL: str = "text-embedding-004"
 
+    MONGO_URI: str = "mongodb://root:rootpassword@localhost:27017"
+    MONGO_DB_NAME: str = "personal_ai_engine"
+
+    ZENML_STORE_URL: str = "http://localhost:8080"
+
 
 settings = AppSettings()

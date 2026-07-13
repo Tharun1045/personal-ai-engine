@@ -77,3 +77,16 @@ def test_gemini_generate_raises():
     adapter = GeminiChatGenerator(api_key="test", model="test")
     with pytest.raises(NotImplementedError):
         adapter.generate("test")
+
+
+@patch("src.gateway.adapters.ollama_adapter.ollama.Client.chat")
+def test_ollama_failure_no_fallback(mock_chat):
+    mock_chat.side_effect = Exception("Ollama connection refused")
+    adapter = OllamaChatGenerator(base_url="http://localhost:11434", model="qwen3:8b")
+
+    with pytest.raises(
+        RuntimeError, match="Ollama chat generation failed: Ollama connection refused"
+    ):
+        adapter.generate("Say hello")
+
+    # We assert that it raises and does NOT return a fallback string or use another provider

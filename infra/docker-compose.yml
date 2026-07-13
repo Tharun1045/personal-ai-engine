@@ -17,7 +17,7 @@ services:
       start_period: 40s
 
   zenml:
-    image: zenmldocker/zenml:latest
+    image: zenmldocker/zenml:0.96.1
     container_name: zenml
     ports:
       - "8080:8080"
