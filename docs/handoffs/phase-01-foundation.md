@@ -19,8 +19,8 @@ Established foundational project structure using `uv` for dependency management.
 - **Formatting/Linting:** `uv run ruff format .` & `uv run ruff check .` (Pass)
 - **Type Checking:** `uv run mypy .` (Pass)
 - **Tests:** `uv run pytest -m "not integration"` (Pass)
-- **Integration Tests:** `uv run pytest -m integration` (Pending verification of Ollama availability and Docker)
-- **Docker:** `docker compose -f infra/docker-compose.yml up -d` (Pending verification)
+- **Integration Tests:** `uv run pytest -m integration` (Pass: 4 passed in 94.95s, Ollama integration verified)
+- **Docker:** `docker compose -f infra/docker-compose.yml up -d` (Failed: local docker daemon not running)
 
 ## Security Check
 - Passed `git status` check, no real secrets or `.env` exposed.
