@@ -1,7 +1,7 @@
 [project]
 name = "personal-ai-engine"
 version = "0.1.0"
-description = "Add your description here"
+description = "AI offline and online assistant engine"
 readme = "README.md"
 authors = [
     { name = "Tharun", email = "tharunkumar.j96@gmail.com" }
@@ -19,6 +19,19 @@ dependencies = [
     "sqlalchemy-utils>=0.42.1",
     "tiktoken>=0.13.0",
     "zenml[server]>=0.96.1",
+    "gradio>=4.0.0",
+    "datasets>=2.14.0",
+    "huggingface-hub>=0.16.0",
+]
+
+[project.optional-dependencies]
+training = [
+    "transformers>=4.30.0",
+    "trl>=0.7.0",
+    "comet-ml>=3.35.0",
+]
+evaluation = [
+    "opik>=0.2.0",
 ]
 
 [build-system]
