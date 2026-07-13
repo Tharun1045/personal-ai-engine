@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-
+from typing import List, Optional
 from pydantic import BaseModel, Field
 
 from src.personal_ai_engine import utils
@@ -18,7 +18,6 @@ class DocumentMetadata(BaseModel):
         Returns:
             DocumentMetadata: Self, with ID and URL obfuscated.
         """
-
         original_id = self.id.replace("-", "")
         fake_id = utils.generate_random_hex(len(original_id))
 
@@ -31,11 +30,13 @@ class DocumentMetadata(BaseModel):
 class Document(BaseModel):
     id: str = Field(default_factory=lambda: utils.generate_random_hex(length=32))
     metadata: DocumentMetadata
-    parent_metadata: DocumentMetadata | None = None
+    parent_metadata: Optional[DocumentMetadata] = None
     content: str
-    content_quality_score: float | None = None
-    summary: str | None = None
-    child_urls: list[str] = Field(default_factory=list)
+    content_hash: Optional[str] = None
+    content_quality_score: Optional[float] = None
+    quality_assessment: Optional[dict] = None
+    summary: Optional[str] = None
+    child_urls: List[str] = Field(default_factory=list)
 
     @classmethod
     def from_file(cls, file_path: Path) -> "Document":
@@ -46,24 +47,16 @@ class Document(BaseModel):
 
         Returns:
             Document: A new Document instance constructed from the file data.
-
-        Raises:
-            FileNotFoundError: If the specified file doesn't exist.
-            ValidationError: If the JSON data doesn't match the expected model structure.
         """
-
         json_data = file_path.read_text(encoding="utf-8")
-
         return cls.model_validate_json(json_data)
 
     def add_summary(self, summary: str) -> "Document":
         self.summary = summary
-
         return self
 
     def add_quality_score(self, score: float) -> "Document":
         self.content_quality_score = score
-
         return self
 
     def write(
@@ -76,7 +69,6 @@ class Document(BaseModel):
             obfuscate: If True, sensitive information will be obfuscated.
             also_save_as_txt: If True, content will also be saved as a text file.
         """
-
         output_dir.mkdir(parents=True, exist_ok=True)
 
         if obfuscate:
@@ -104,7 +96,6 @@ class Document(BaseModel):
         Returns:
             Document: Self, with obfuscated metadata and parent_metadata.
         """
-
         self.metadata = self.metadata.obfuscate()
         self.parent_metadata = (
             self.parent_metadata.obfuscate() if self.parent_metadata else None
@@ -114,22 +105,25 @@ class Document(BaseModel):
         return self
 
     def __eq__(self, other: object) -> bool:
-        """Compare two Document objects for equality.
-
-        Args:
-            other: Another object to compare with this Document.
-
-        Returns:
-            bool: True if the other object is a Document with the same ID.
-        """
         if not isinstance(other, Document):
             return False
         return self.id == other.id
 
     def __hash__(self) -> int:
-        """Generate a hash value for the Document.
+        return hash(self.id)
 
-        Returns:
-            int: Hash value based on the document's ID.
-        """
+
+class DocumentChunk(BaseModel):
+    id: str = Field(default_factory=lambda: utils.generate_random_hex(length=32))
+    parent_id: str
+    content: str
+    embedding: Optional[List[float]] = None
+    metadata: dict = Field(default_factory=dict)
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, DocumentChunk):
+            return False
+        return self.id == other.id
+
+    def __hash__(self) -> int:
         return hash(self.id)

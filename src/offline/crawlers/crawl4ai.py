@@ -1,8 +1,6 @@
 import asyncio
-import os
 
-import psutil
-from crawl4ai import AsyncWebCrawler, CacheMode
+from crawl4ai import AsyncWebCrawler, CacheMode  # type: ignore
 from loguru import logger
 
 from src.personal_ai_engine import utils
@@ -49,11 +47,8 @@ class Crawl4AICrawler:
         Returns:
             list[Document]: List of new documents created from successfully crawled URLs.
         """
-        process = psutil.Process(os.getpid())
-        start_mem = process.memory_info().rss
         logger.debug(
             f"Starting crawl batch with {self.max_concurrent_requests} concurrent requests. "
-            f"Current process memory usage: {start_mem // (1024 * 1024)} MB"
         )
 
         semaphore = asyncio.Semaphore(self.max_concurrent_requests)
@@ -67,14 +62,6 @@ class Crawl4AICrawler:
                 ]
                 results = await asyncio.gather(*tasks)
                 all_results.extend(results)
-
-        end_mem = process.memory_info().rss
-        crawling_memory_diff = end_mem - start_mem
-        logger.debug(
-            f"Crawl batch completed. "
-            f"Final process memory usage: {end_mem // (1024 * 1024)} MB, "
-            f"Crawling memory diff: {crawling_memory_diff // (1024 * 1024)} MB"
-        )
 
         successful_results = [result for result in all_results if result is not None]
 

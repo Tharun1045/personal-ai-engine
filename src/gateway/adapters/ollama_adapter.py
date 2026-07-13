@@ -18,6 +18,19 @@ class OllamaChatGenerator(ChatGenerator):
         except Exception as e:
             raise RuntimeError(f"Ollama chat generation failed: {e}")
 
+    def generate_with_system(self, system: str, prompt: str) -> str:
+        try:
+            response = self.client.chat(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": prompt},
+                ],
+            )
+            return response["message"]["content"]
+        except Exception as e:
+            raise RuntimeError(f"Ollama chat generation failed: {e}")
+
 
 class OllamaTextEmbedder(TextEmbedder):
     def __init__(self, base_url: str, model: str):
@@ -31,3 +44,10 @@ class OllamaTextEmbedder(TextEmbedder):
             return response["embedding"]
         except Exception as e:
             raise RuntimeError(f"Ollama embedding failed: {e}")
+
+    def embed_batch(self, texts: List[str]) -> List[List[float]]:
+        # In Ollama we do sequential calls or batch if backend supports it. Sequential is safe.
+        embeddings = []
+        for t in texts:
+            embeddings.append(self.embed(t))
+        return embeddings

@@ -9,6 +9,18 @@ def test_mongo_config_validation():
     assert settings.MONGO_DB_NAME == "test"
 
 
+def test_local_cosine_similarity():
+    client = MongoDBClient()
+    sim = client._cosine_similarity([1.0, 0.0], [1.0, 0.0])
+    assert abs(sim - 1.0) < 1e-6
+    sim2 = client._cosine_similarity([1.0, 0.0], [0.0, 1.0])
+    assert abs(sim2 - 0.0) < 1e-6
+
+    # Orthogonal vectors
+    sim3 = client._cosine_similarity([1.0, 0.0], [0.0, 1.0])
+    assert abs(sim3 - 0.0) < 1e-6
+
+
 @pytest.mark.integration
 def test_mongo_smoke():
     # Will fail if docker is not running or mongodb is unavailable

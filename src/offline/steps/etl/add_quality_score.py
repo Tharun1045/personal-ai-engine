@@ -34,13 +34,12 @@ def add_quality_score(
     Returns:
         list[Document]: Documents enhanced with quality scores, annotated as
             "scored_documents" for pipeline metadata tracking
-
-    Note:
-        The function adds metadata to the step context including the total number
-        of documents and how many received quality scores.
     """
     heuristic_quality_agent = HeuristicQualityAgent()
-    scored_documents: list[Document] = heuristic_quality_agent(documents)
+    res_heuristic = heuristic_quality_agent(documents)
+    scored_documents = (
+        res_heuristic if isinstance(res_heuristic, list) else [res_heuristic]
+    )
 
     scored_documents_with_heuristics = [
         d for d in scored_documents if d.content_quality_score is not None
@@ -52,13 +51,12 @@ def add_quality_score(
     quality_agent = QualityScoreAgent(
         model_id=model_id, mock=mock, max_concurrent_requests=max_workers
     )
-    scored_documents_with_agents: list[Document] = quality_agent(
-        documents_without_scores
+    res_agent = quality_agent(documents_without_scores)
+    scored_documents_with_agents = (
+        res_agent if isinstance(res_agent, list) else [res_agent]
     )
 
-    scored_documents: list[Document] = (
-        scored_documents_with_heuristics + scored_documents_with_agents
-    )
+    scored_documents = scored_documents_with_heuristics + scored_documents_with_agents
 
     len_documents = len(documents)
     len_documents_with_scores = len(

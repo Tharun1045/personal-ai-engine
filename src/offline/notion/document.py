@@ -158,6 +158,7 @@ class NotionDocumentClient:
                 block_type != "child_page"
                 and "has_children" in block
                 and block["has_children"]
+                and block_id
             ):
                 child_blocks = self.__retrieve_child_blocks(block_id)
                 child_content, child_urls = self.__parse_blocks(child_blocks, depth + 1)

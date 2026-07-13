@@ -12,6 +12,7 @@ from src.gateway.adapters.gemini_adapter import GeminiChatGenerator, GeminiTextE
 @patch("src.gateway.factory.settings")
 def test_factory_returns_ollama(mock_settings):
     mock_settings.AI_PROVIDER = "ollama"
+    mock_settings.EMBEDDING_PROVIDER = "ollama"
     mock_settings.OLLAMA_BASE_URL = "http://localhost:11434"
     mock_settings.OLLAMA_CHAT_MODEL = "qwen3:8b"
     mock_settings.OLLAMA_EMBEDDING_MODEL = "nomic-embed-text:latest"
@@ -26,6 +27,7 @@ def test_factory_returns_ollama(mock_settings):
 @patch("src.gateway.factory.settings")
 def test_factory_returns_openrouter(mock_settings):
     mock_settings.AI_PROVIDER = "openrouter"
+    mock_settings.EMBEDDING_PROVIDER = "openrouter"
     mock_settings.OPENROUTER_API_KEY = "test_key"
     mock_settings.OPENROUTER_CHAT_MODEL = "meta-llama/llama-3-8b-instruct:free"
 
@@ -39,6 +41,7 @@ def test_factory_returns_openrouter(mock_settings):
 @patch("src.gateway.factory.settings")
 def test_factory_returns_gemini(mock_settings):
     mock_settings.AI_PROVIDER = "gemini"
+    mock_settings.EMBEDDING_PROVIDER = "gemini"
     mock_settings.GEMINI_API_KEY = "test_key"
     mock_settings.GEMINI_CHAT_MODEL = "gemini-1.5-flash"
     mock_settings.GEMINI_EMBEDDING_MODEL = "text-embedding-004"
@@ -67,16 +70,26 @@ def test_gemini_missing_key():
         GeminiChatGenerator(api_key="", model="test")
 
 
-def test_openrouter_generate_raises():
+@patch("src.gateway.adapters.openrouter_adapter.requests.post")
+def test_openrouter_generate_api_call(mock_post):
+    mock_post.return_value.status_code = 200
+    mock_post.return_value.json.return_value = {
+        "choices": [{"message": {"content": "openrouter response"}}]
+    }
     adapter = OpenRouterChatGenerator(api_key="test", model="test")
-    with pytest.raises(NotImplementedError):
-        adapter.generate("test")
+    res = adapter.generate("test")
+    assert res == "openrouter response"
 
 
-def test_gemini_generate_raises():
+@patch("src.gateway.adapters.gemini_adapter.requests.post")
+def test_gemini_generate_api_call(mock_post):
+    mock_post.return_value.status_code = 200
+    mock_post.return_value.json.return_value = {
+        "candidates": [{"content": {"parts": [{"text": "gemini response"}]}}]
+    }
     adapter = GeminiChatGenerator(api_key="test", model="test")
-    with pytest.raises(NotImplementedError):
-        adapter.generate("test")
+    res = adapter.generate("test")
+    assert res == "gemini response"
 
 
 @patch("src.gateway.adapters.ollama_adapter.ollama.Client.chat")
@@ -88,5 +101,3 @@ def test_ollama_failure_no_fallback(mock_chat):
         RuntimeError, match="Ollama chat generation failed: Ollama connection refused"
     ):
         adapter.generate("Say hello")
-
-    # We assert that it raises and does NOT return a fallback string or use another provider

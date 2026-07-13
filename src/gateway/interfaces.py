@@ -7,8 +7,16 @@ class ChatGenerator(ABC):
     def generate(self, prompt: str) -> str:
         pass
 
+    @abstractmethod
+    def generate_with_system(self, system: str, prompt: str) -> str:
+        pass
+
 
 class TextEmbedder(ABC):
     @abstractmethod
     def embed(self, text: str) -> List[float]:
+        pass
+
+    @abstractmethod
+    def embed_batch(self, texts: List[str]) -> List[List[float]]:
         pass

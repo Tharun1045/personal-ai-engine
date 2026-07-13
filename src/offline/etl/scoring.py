@@ -1,4 +1,5 @@
 import json
+from typing import List, Union
 from loguru import logger
 from src.personal_ai_engine.domain import Document
 from src.gateway.factory import AIGatewayFactory
@@ -6,10 +7,15 @@ from src.gateway.factory import AIGatewayFactory
 
 class HeuristicQualityAgent:
     def __call__(
-        self, documents: Document | list[Document]
-    ) -> Document | list[Document]:
-        is_single = isinstance(documents, Document)
-        docs = [documents] if is_single else documents
+        self, documents: Union[Document, List[Document]]
+    ) -> Union[Document, List[Document]]:
+        if isinstance(documents, Document):
+            docs = [documents]
+            is_single = True
+        else:
+            docs = documents
+            is_single = False
+
         scored = [self.__score_document(d) for d in docs]
         return scored[0] if is_single else scored
 
@@ -51,16 +57,28 @@ DOCUMENT:
 {document}
 """
 
-    def __init__(self, mock: bool = False):
+    def __init__(
+        self,
+        model_id: str = "qwen3:8b",
+        mock: bool = False,
+        max_concurrent_requests: int = 10,
+    ):
         self.mock = mock
+        self.model_id = model_id
         # Enforce Ollama provider as per requirements
-        self.chat_generator = AIGatewayFactory.get_chat_generator(provider="ollama")
+        self.chat_generator = AIGatewayFactory.get_chat_generator(
+            provider="ollama", model=model_id
+        )
 
     def __call__(
-        self, documents: Document | list[Document]
-    ) -> Document | list[Document]:
-        is_single = isinstance(documents, Document)
-        docs = [documents] if is_single else documents
+        self, documents: Union[Document, List[Document]]
+    ) -> Union[Document, List[Document]]:
+        if isinstance(documents, Document):
+            docs = [documents]
+            is_single = True
+        else:
+            docs = documents
+            is_single = False
 
         scored = []
         for doc in docs:
